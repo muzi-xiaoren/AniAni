@@ -1,7 +1,7 @@
 name: Release
 
-# Build signed-less release installers for macOS + Windows and attach them to a
-# draft GitHub Release. Trigger manually (Actions → Release → Run workflow) or by
+# Build signed-less release installers for macOS + Windows and publish them as a
+# GitHub Release (auto-published). Trigger manually (Actions → Release → Run workflow) or by
 # pushing a tag like `v0.1.0`. The release version comes from src-tauri/tauri.conf.json
 # (the `__VERSION__` placeholder), so bump that to cut a new version.
 
@@ -26,10 +26,10 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: lts/*
           cache: npm
@@ -60,6 +60,6 @@ jobs:
             - macOS：`.dmg`（通用版，Intel 与 Apple Silicon 通用）
 
             macOS 首次打开如提示“无法验证开发者/已损坏”，请右键图标 → 打开（应用未做苹果签名）。
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
