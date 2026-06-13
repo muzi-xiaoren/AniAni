@@ -1,0 +1,30 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "enables the default permissions",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "fs:default",
+    "dialog:default",
+    { "identifier": "fs:allow-read-file", "allow": [{ "path": "$HOME/**" }] },
+    { "identifier": "fs:allow-write-file", "allow": [{ "path": "$HOME/**" }] },
+    "fs:allow-appdata-read-recursive",
+    "fs:allow-appdata-write-recursive",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://yuc.wiki/*" },
+        { "url": "http://yuc.wiki/*" },
+        { "url": "https://*.hdslb.com/*" },
+        { "url": "http://*.hdslb.com/*" },
+        { "url": "https://*.imgs.ovh/*" },
+        { "url": "http://*.imgs.ovh/*" },
+        { "url": "https://cdn.jsdelivr.net/*" },
+        { "url": "https://fastly.jsdelivr.net/*" }
+      ]
+    }
+  ]
+}

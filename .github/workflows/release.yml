@@ -1,0 +1,65 @@
+name: Release
+
+# Build signed-less release installers for macOS + Windows and attach them to a
+# draft GitHub Release. Trigger manually (Actions → Release → Run workflow) or by
+# pushing a tag like `v0.1.0`. The release version comes from src-tauri/tauri.conf.json
+# (the `__VERSION__` placeholder), so bump that to cut a new version.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest # builds a universal (Intel + Apple Silicon) .dmg/.app
+            args: "--target universal-apple-darwin"
+          - platform: windows-latest # builds .msi + .exe (NSIS)
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build the app and publish the release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: anime-tietie-v__VERSION__
+          releaseName: "AniAni v__VERSION__"
+          releaseBody: |
+            下载对应平台的安装包：
+            - Windows：`.msi` 或 `.exe`
+            - macOS：`.dmg`（通用版，Intel 与 Apple Silicon 通用）
+
+            macOS 首次打开如提示“无法验证开发者/已损坏”，请右键图标 → 打开（应用未做苹果签名）。
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
