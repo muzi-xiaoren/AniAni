@@ -60,11 +60,19 @@ jobs:
           tagName: v__VERSION__
           releaseName: "AniAni v__VERSION__"
           releaseBody: |
-            下载对应平台的安装包：
-            - Windows（x64）：`.msi` 或 `.exe`
-            - macOS：Apple Silicon（M 系列芯片）选 `aarch64`，Intel 芯片选 `x64` 的 `.dmg`
+            ## 下载哪个文件 / Which file do I download?
 
-            macOS 首次打开如提示“无法验证开发者/已损坏”，请右键图标 → 打开（应用未做苹果签名）。
+            | 文件 / File | 平台 / Platform |
+            | --- | --- |
+            | `*_aarch64.dmg` | macOS · Apple Silicon（M1/M2/M3…） |
+            | `*_x64.dmg` | macOS · Intel |
+            | `*_x64-setup.exe` | Windows x64（推荐 / recommended, NSIS） |
+            | `*_x64_en-US.msi` | Windows x64（MSI） |
+            | `*_aarch64.app.tar.gz` / `*_x64.app.tar.gz` | 自动更新包，普通安装请忽略 / updater archives — ignore for a normal install |
+
+            首次打开 / First launch:
+            - macOS 若提示“无法验证开发者/已损坏”，右键图标 → 打开（应用未签名）。
+            - Windows 若有 SmartScreen 提示，点“更多信息 → 仍要运行”。
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
