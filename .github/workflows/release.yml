@@ -52,7 +52,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: anime-tietie-v__VERSION__
+          tagName: v__VERSION__
           releaseName: "AniAni v__VERSION__"
           releaseBody: |
             下载对应平台的安装包：
