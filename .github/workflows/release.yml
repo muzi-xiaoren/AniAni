@@ -19,10 +19,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest # builds a universal (Intel + Apple Silicon) .dmg/.app
-            args: "--target universal-apple-darwin"
-          - platform: windows-latest # builds .msi + .exe (NSIS)
+          - platform: macos-latest # Apple Silicon (M-series) .dmg/.app
+            args: "--target aarch64-apple-darwin"
+            rust-targets: aarch64-apple-darwin
+          - platform: macos-latest # Intel .dmg/.app
+            args: "--target x86_64-apple-darwin"
+            rust-targets: x86_64-apple-darwin
+          - platform: windows-latest # x64 .msi + .exe (NSIS)
             args: ""
+            rust-targets: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -37,7 +42,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust-targets }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -56,8 +61,8 @@ jobs:
           releaseName: "AniAni v__VERSION__"
           releaseBody: |
             下载对应平台的安装包：
-            - Windows：`.msi` 或 `.exe`
-            - macOS：`.dmg`（通用版，Intel 与 Apple Silicon 通用）
+            - Windows（x64）：`.msi` 或 `.exe`
+            - macOS：Apple Silicon（M 系列芯片）选 `aarch64`，Intel 芯片选 `x64` 的 `.dmg`
 
             macOS 首次打开如提示“无法验证开发者/已损坏”，请右键图标 → 打开（应用未做苹果签名）。
           releaseDraft: false
