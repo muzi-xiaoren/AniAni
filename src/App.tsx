@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ask, open, save } from "@tauri-apps/plugin-dialog";
-import { readFile, writeFile } from "@tauri-apps/plugin-fs";
+import { ask, open } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
 import { fetchSeasonHTML, toYearMonth } from "./lib/fetch";
 import { parseSeasonHTML } from "./lib/parse";
 import { normalizeSeason } from "./lib/schedule";
@@ -23,6 +23,8 @@ import type { AnimeEntry, SeasonData } from "./lib/types";
 import { Cover } from "./components/Cover";
 import { PreviewModal } from "./components/PreviewModal";
 import { BackgroundStudio } from "./components/BackgroundStudio";
+import { SettingsModal } from "./components/SettingsModal";
+import { downloadCollage, loadSettings } from "./lib/settings";
 import { LANGS, setLang } from "./i18n";
 import "./App.css";
 
@@ -62,14 +64,17 @@ export default function App() {
   const [scores, setScores] = useState<Record<string, string>>({});
   const [addName, setAddName] = useState(true);
   const [addTime, setAddTime] = useState(true);
-  const [border, setBorder] = useState(true);
+  const [border, setBorder] = useState(false);
+  const [scored, setScored] = useState(false); // 打分(after) vs 不打分(before)
   const [opacity, setOpacity] = useState(0.9);
   const [bg, setBg] = useState<{ bytes: Uint8Array; name: string } | null>(null);
 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [showStudio, setShowStudio] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Autosave is paused until the loaded season's project has been hydrated,
   // so restoring state doesn't immediately re-save (or clobber) it.
@@ -77,7 +82,12 @@ export default function App() {
 
   useEffect(() => {
     initCjkFonts();
-    listCachedSeasons().then(setCachedSeasons);
+    // On launch, open the most recent cached season automatically.
+    listCachedSeasons().then((list) => {
+      setCachedSeasons(list);
+      if (list.length) openSeason(list[0]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -108,7 +118,7 @@ export default function App() {
       setScores(proj?.scores ?? {});
       setAddName(proj?.addName ?? true);
       setAddTime(proj?.addTime ?? true);
-      setBorder(proj?.border ?? true);
+      setBorder(proj?.border ?? false);
       setOpacity(proj?.opacity ?? 0.9);
       const bgBytes = await loadBackground(ym);
       setBg(bgBytes ? { bytes: bgBytes, name: proj?.bgName || t("app.savedBgName") } : null);
@@ -214,6 +224,7 @@ export default function App() {
     if (!season || selectedEntries.length === 0) return;
     setGenerating(true);
     setError("");
+    setSaveMsg(null);
     try {
       const ym = season.yearMonth;
       const covers = await Promise.all(
@@ -223,7 +234,8 @@ export default function App() {
       const items = selectedEntries.map((e, i) => ({
         title: e.title,
         subtitle: `${wdName(e.day)} ${e.time}`.trim(),
-        score: scores[keyOf(e)]?.trim() ?? "",
+        // 打分(after) shows the score; 不打分(before) omits it
+        score: scored ? (scores[keyOf(e)]?.trim() ?? "") : "",
         cover: covers[i],
       }));
 
@@ -240,17 +252,17 @@ export default function App() {
     }
   }
 
+  // Auto-download the collage to <outputDir>/<after|before>/<ym>_<after|before>.png.
   async function savePng() {
     if (!preview || !season) return;
     setSaving(true);
+    setSaveMsg(null);
     try {
-      const path = await save({
-        defaultPath: `${season.yearMonth}_tietie.png`,
-        filters: [{ name: "PNG", extensions: ["png"] }],
-      });
-      if (path) await writeFile(path, preview.bytes);
+      const s = await loadSettings();
+      const path = await downloadCollage(s.outputDir, season.yearMonth, scored, preview.bytes);
+      setSaveMsg({ ok: true, text: t("app.savedTo", { path }) });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setSaveMsg({ ok: false, text: t("app.saveFailed", { err: e instanceof Error ? e.message : String(e) }) });
     } finally {
       setSaving(false);
     }
@@ -294,6 +306,9 @@ export default function App() {
           )}
         </div>
         <div className="spacer" />
+        <button className="chip" onClick={() => setShowSettings(true)}>
+          {t("app.settings")}
+        </button>
         <select
           className="lang-select"
           value={i18n.resolvedLanguage}
@@ -348,6 +363,10 @@ export default function App() {
           <label className="opt">
             <input type="checkbox" checked={border} onChange={(e) => setBorder(e.target.checked)} />
             {t("app.optBorder")}
+          </label>
+          <label className="opt">
+            <input type="checkbox" checked={scored} onChange={(e) => setScored(e.target.checked)} />
+            {t("app.scored")}
           </label>
           <label className="opt opt--slider">
             {t("app.opacity")}
@@ -434,9 +453,10 @@ export default function App() {
         </main>
       )}
 
-      {showStudio && (
+      {showStudio && season && (
         <BackgroundStudio
           seasonTitles={seasonTitles}
+          ym={season.yearMonth}
           onApply={(bytes) => {
             applyBackground(bytes, t("app.wordCloudBgName"));
             setShowStudio(false);
@@ -445,16 +465,20 @@ export default function App() {
         />
       )}
 
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+
       {preview && (
         <PreviewModal
           url={preview.url}
           width={preview.width}
           height={preview.height}
           saving={saving}
+          status={saveMsg}
           onSave={savePng}
           onClose={() => {
             URL.revokeObjectURL(preview.url);
             setPreview(null);
+            setSaveMsg(null);
           }}
         />
       )}

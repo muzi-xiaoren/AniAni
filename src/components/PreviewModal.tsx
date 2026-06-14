@@ -5,11 +5,12 @@ interface Props {
   width: number;
   height: number;
   saving: boolean;
+  status?: { ok: boolean; text: string } | null;
   onSave: () => void;
   onClose: () => void;
 }
 
-export function PreviewModal({ url, width, height, saving, onSave, onClose }: Props) {
+export function PreviewModal({ url, width, height, saving, status, onSave, onClose }: Props) {
   const { t } = useTranslation();
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -24,6 +25,12 @@ export function PreviewModal({ url, width, height, saving, onSave, onClose }: Pr
           <img src={url} alt={t("preview.alt")} />
         </div>
         <div className="modal-foot">
+          {status && (
+            <span className={`save-msg ${status.ok ? "save-msg--ok" : "save-msg--err"}`} title={status.text}>
+              {status.text}
+            </span>
+          )}
+          <div className="spacer" />
           <button className="btn-ghost" onClick={onClose}>
             {t("common.close")}
           </button>

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "anime-tietie",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.donglin.animetietie",
   "build": {
     "frontendDist": "../dist",
@@ -12,11 +12,13 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "追番贴贴",
         "width": 1180,
         "height": 820,
         "minWidth": 900,
         "minHeight": 640,
+        "center": true,
         "resizable": true,
         "fullscreen": false
       }
