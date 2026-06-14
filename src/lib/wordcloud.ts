@@ -134,6 +134,7 @@ export interface WordCloudConfig {
   density: number; // wordcloud2 gridSize — smaller = denser
   sizeScale: number; // multiplier on word size (weightFactor)
   rotationMode: string; // 'tilt' | 'h' | 'hv' | 'any'
+  textOpacity: number; // 0..1 alpha of the words (lower = lighter, easier to read covers on top)
   mask?: MaskConfig | null;
 }
 
@@ -226,12 +227,25 @@ function buildMaskAlpha(src: ImageData, cfg: MaskConfig): HTMLCanvasElement {
   return c;
 }
 
-function colorFn(palette: string[]) {
-  return () => palette[Math.floor(Math.random() * palette.length)];
+/** Apply an alpha to a #hex or rgb(...) color, producing an rgba() string. */
+function toRgba(color: string, alpha: number): string {
+  if (alpha >= 1) return color;
+  if (color[0] === "#") {
+    let h = color.slice(1);
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    const n = parseInt(h, 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+  }
+  if (color.startsWith("rgb(")) return color.replace("rgb(", "rgba(").replace(")", `,${alpha})`);
+  return color;
+}
+
+function colorFn(palette: string[], alpha: number) {
+  return () => toRgba(palette[Math.floor(Math.random() * palette.length)], alpha);
 }
 
 /** Color callback that samples the fitted source image at each word's position. */
-function imageColorFn(src: ImageData, palette: string[]) {
+function imageColorFn(src: ImageData, palette: string[], alpha: number) {
   const { width: w, height: h, data } = src;
   const cx = w / 2;
   const cy = h / 2;
@@ -240,9 +254,9 @@ function imageColorFn(src: ImageData, palette: string[]) {
     const y = Math.round(cy - distance * Math.sin(theta));
     if (x >= 0 && x < w && y >= 0 && y < h) {
       const idx = (y * w + x) * 4;
-      if (data[idx + 3] > 40) return `rgb(${data[idx]},${data[idx + 1]},${data[idx + 2]})`;
+      if (data[idx + 3] > 40) return toRgba(`rgb(${data[idx]},${data[idx + 1]},${data[idx + 2]})`, alpha);
     }
-    return palette[Math.floor(Math.random() * palette.length)];
+    return toRgba(palette[Math.floor(Math.random() * palette.length)], alpha);
   };
 }
 
@@ -281,8 +295,11 @@ export async function renderWordCloud(canvas: HTMLCanvasElement, cfg: WordCloudC
   // For masks: fit the image, build the shape alpha + (optional) color sampling.
   const srcData = hasMask ? fitImageData(cfg.mask!.image, cfg.width, cfg.height) : null;
   const maskAlpha = hasMask && srcData ? buildMaskAlpha(srcData, cfg.mask!) : null;
+  const alpha = cfg.textOpacity ?? 1;
   const color =
-    hasMask && cfg.mask!.colorFromImage && srcData ? imageColorFn(srcData, palette) : colorFn(palette);
+    hasMask && cfg.mask!.colorFromImage && srcData
+      ? imageColorFn(srcData, palette, alpha)
+      : colorFn(palette, alpha);
 
   // Masking by PLACEMENT, not clipping: wordcloud2 with clearCanvas:false treats a
   // grid cell as fillable only when all its pixels equal the background. So we leave

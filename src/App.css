@@ -206,10 +206,10 @@
   flex: 1;
   overflow: auto;
   padding: 18px 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 18px;
-  align-items: start;
+  /* each weekday/category is a full-width row, stacked top-to-bottom */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .col {
@@ -240,8 +240,9 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
+  /* anime in a day flow left-to-right, wrapping onto more lines as needed */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 10px;
 }
 
@@ -601,4 +602,45 @@
 /* the opacity control in the toolbar is tighter */
 .opt--slider .range-num {
   width: 54px;
+}
+
+/* save / download status line (preview + studio footers) */
+.save-msg {
+  font-size: 12px;
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.save-msg--ok {
+  color: #2b8a3e;
+}
+.save-msg--err {
+  color: #e03131;
+}
+
+/* settings dialog */
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+.settings-path {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d7dae3;
+  border-radius: 8px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+.settings-row {
+  display: flex;
+  gap: 10px;
+}
+.settings-note {
+  margin: 0;
+  font-size: 12px;
+  color: #8a8f9c;
+  line-height: 1.6;
 }

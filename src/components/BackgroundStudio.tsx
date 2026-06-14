@@ -5,6 +5,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { bitmapFromBytes, canvasToPngBytes } from "../lib/compose";
 import { FONTS, FONT_GROUPS, PALETTES, ROTATION_MODES, SHAPES, renderWordCloud, stopWordCloud } from "../lib/wordcloud";
 import { CJK_FONTS, useInstalledCjkFonts } from "../lib/fontStore";
+import { loadSettings, downloadWordCloud } from "../lib/settings";
 import { FontManager } from "./FontManager";
 
 // `key` resolves to an i18n label under `aspect.*`.
@@ -87,11 +88,12 @@ function RangeField({
 
 interface Props {
   seasonTitles: string[];
+  ym: string; // current season, used to name the downloaded word cloud
   onApply: (bytes: Uint8Array) => void;
   onClose: () => void;
 }
 
-export function BackgroundStudio({ seasonTitles, onApply, onClose }: Props) {
+export function BackgroundStudio({ seasonTitles, ym, onApply, onClose }: Props) {
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Tracks whether a press *started* on the backdrop, so dragging a slider past
@@ -103,10 +105,13 @@ export function BackgroundStudio({ seasonTitles, onApply, onClose }: Props) {
   const [bgColor, setBgColor] = useState("#ffffff");
   const [aspect, setAspect] = useState("0");
   const [rotate, setRotate] = useState(0.4);
-  const [rotationMode, setRotationMode] = useState("tilt");
+  const [rotationMode, setRotationMode] = useState("any");
   const [fontFamily, setFontFamily] = useState(FONTS[0].value);
   const [density, setDensity] = useState(8); // gridSize
   const [sizeScale, setSizeScale] = useState(1);
+  const [textOpacity, setTextOpacity] = useState(1); // 0..1 alpha of the words
+  const [dling, setDling] = useState(false);
+  const [dlMsg, setDlMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [customFont, setCustomFont] = useState<{ family: string; name: string } | null>(null);
   const [nonce, setNonce] = useState(0);
   const [rendering, setRendering] = useState(false);
@@ -144,12 +149,13 @@ export function BackgroundStudio({ seasonTitles, onApply, onClose }: Props) {
       fontFamily,
       density,
       sizeScale,
+      textOpacity,
       mask: mask ? { image: mask, invert, colorFromImage, threshold, edges } : null,
     }).then(() => setRendering(false));
     return () => stopWordCloud();
     // text is read fresh whenever another control or 重新生成 triggers a render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shape, palette, bgColor, aspect, rotate, rotationMode, fontFamily, density, sizeScale, nonce, mask, invert, colorFromImage, threshold, edges]);
+  }, [shape, palette, bgColor, aspect, rotate, rotationMode, fontFamily, density, sizeScale, textOpacity, nonce, mask, invert, colorFromImage, threshold, edges]);
 
   async function uploadFont() {
     try {
@@ -184,6 +190,24 @@ export function BackgroundStudio({ seasonTitles, onApply, onClose }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvasToPngBytes(canvas).then(onApply);
+  }
+
+  // Save the current word cloud straight to <outputDir>/wordcloud/<ym>_wordcloud.png.
+  async function download() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setDling(true);
+    setDlMsg(null);
+    try {
+      const bytes = await canvasToPngBytes(canvas);
+      const s = await loadSettings();
+      const path = await downloadWordCloud(s.outputDir, ym, bytes);
+      setDlMsg({ ok: true, text: t("app.savedTo", { path }) });
+    } catch (e) {
+      setDlMsg({ ok: false, text: t("app.saveFailed", { err: e instanceof Error ? e.message : String(e) }) });
+    } finally {
+      setDling(false);
+    }
   }
 
   return (
@@ -401,6 +425,15 @@ export function BackgroundStudio({ seasonTitles, onApply, onClose }: Props) {
               value={sizeScale}
               onChange={setSizeScale}
             />
+
+            <RangeField
+              label={t("studio.textOpacity")}
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(textOpacity * 100)}
+              onChange={(v) => setTextOpacity(v / 100)}
+            />
           </div>
         </div>
 
@@ -408,6 +441,14 @@ export function BackgroundStudio({ seasonTitles, onApply, onClose }: Props) {
           <button className="btn-ghost" onClick={() => setNonce((n) => n + 1)} disabled={rendering}>
             {t("studio.regenerate")}
           </button>
+          <button className="btn-ghost" onClick={download} disabled={rendering || dling}>
+            {dling ? t("app.saving") : t("studio.download")}
+          </button>
+          {dlMsg && (
+            <span className={`save-msg ${dlMsg.ok ? "save-msg--ok" : "save-msg--err"}`} title={dlMsg.text}>
+              {dlMsg.text}
+            </span>
+          )}
           <div className="spacer" />
           <button className="btn-ghost" onClick={onClose}>
             {t("common.cancel")}
