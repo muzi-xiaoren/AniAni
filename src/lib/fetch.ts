@@ -14,10 +14,18 @@ export function toYearMonth(year: number, month: number): string {
   return `${year}${String(month).padStart(2, "0")}`;
 }
 
-/** Fetch the raw season page HTML through the Tauri http plugin (no CORS). */
+/** Fetch the raw season page HTML through the Tauri http plugin (no CORS).
+ *  Falls back to plain http when https fails — yuc.wiki has let its TLS
+ *  certificate expire before (2026-07), which breaks every https request. */
 export async function fetchSeasonHTML(yearMonth: string): Promise<string> {
-  const res = await tauriFetch(seasonUrl(yearMonth), { method: "GET" });
-  if (!res.ok) throw new Error(`抓取页面失败:HTTP ${res.status}(${seasonUrl(yearMonth)})`);
+  const url = seasonUrl(yearMonth);
+  let res: Response;
+  try {
+    res = await tauriFetch(url, { method: "GET" });
+  } catch {
+    res = await tauriFetch(url.replace(/^https:/, "http:"), { method: "GET" });
+  }
+  if (!res.ok) throw new Error(`抓取页面失败:HTTP ${res.status}(${url})`);
   return await res.text();
 }
 

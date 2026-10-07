@@ -8,7 +8,8 @@
 .topbar {
   display: flex;
   align-items: center;
-  gap: 18px;
+  flex-wrap: wrap; /* narrow windows: wrap instead of squeezing the controls */
+  gap: 10px 18px;
   padding: 12px 20px;
   background: #fff;
   border-bottom: 1px solid #e6e8ee;
@@ -124,6 +125,11 @@
 }
 .opt--slider input[type="range"] {
   width: 110px;
+}
+.opt-val {
+  min-width: 38px;
+  font-variant-numeric: tabular-nums;
+  color: #8b90a0;
 }
 
 /* ---------- banners / empty ---------- */
@@ -242,7 +248,8 @@
   padding: 0;
   /* anime in a day flow left-to-right, wrapping onto more lines as needed */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  /* column width tracks the cover-size slider (--cover-w, set on .board) */
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--cover-w, 52px) + 158px), 1fr));
   gap: 10px;
 }
 
@@ -296,8 +303,9 @@
 }
 
 .cover {
-  width: 52px;
-  height: 70px;
+  width: var(--cover-w, 52px);
+  aspect-ratio: 26 / 35; /* 52×70 at the default size */
+  align-self: flex-start; /* keep the ratio even when the card body is taller */
   object-fit: cover;
   border-radius: 6px;
   flex-shrink: 0;

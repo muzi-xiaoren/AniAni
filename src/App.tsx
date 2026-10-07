@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { fetchSeasonHTML, toYearMonth } from "./lib/fetch";
 import { parseSeasonHTML } from "./lib/parse";
-import { normalizeSeason } from "./lib/schedule";
+import { carryOverSchedule, entryKey, isLegacyKey, migrateKeys, normalizeSeason } from "./lib/schedule";
 import { bitmapFromBytes, canvasToPngBytes, renderToCanvas } from "./lib/compose";
 import {
   deleteSeason,
@@ -13,6 +13,7 @@ import {
   loadBackground,
   loadCachedSeason,
   loadProject,
+  pruneLegacyCovers,
   removeBackground,
   saveBackground,
   saveProject,
@@ -41,7 +42,20 @@ const CUR_YEAR = NOW.getFullYear();
 const YEARS = Array.from({ length: CUR_YEAR - 2017 + 1 }, (_, i) => 2018 + i).reverse();
 const DEFAULT_MONTH = [10, 7, 4, 1].find((m) => m <= NOW.getMonth() + 1) ?? 1;
 
-const keyOf = (e: AnimeEntry) => `${e.day}.${e.index}`;
+const keyOf = entryKey;
+
+// Board cover size, as a scale of the base 52×70 thumbnail. Per-device view
+// preference, so it lives in localStorage rather than the per-season project.
+const COVER_BASE_W = 52;
+const COVER_SCALE_KEY = "coverScale";
+function loadCoverScale(): number {
+  try {
+    const v = Number(localStorage.getItem(COVER_SCALE_KEY));
+    return v >= 0.75 && v <= 3 ? v : 1;
+  } catch {
+    return 1;
+  }
+}
 
 interface Preview {
   url: string;
@@ -67,6 +81,7 @@ export default function App() {
   const [border, setBorder] = useState(false);
   const [scored, setScored] = useState(false); // 打分(after) vs 不打分(before)
   const [opacity, setOpacity] = useState(0.9);
+  const [coverScale, setCoverScale] = useState(loadCoverScale);
   const [bg, setBg] = useState<{ bytes: Uint8Array; name: string } | null>(null);
 
   const [generating, setGenerating] = useState(false);
@@ -99,23 +114,27 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      let data: SeasonData | null = null;
-      let cached = false;
-      if (!force) {
-        data = await loadCachedSeason(ym);
-        cached = !!data;
-      }
+      // The cached data is also what any saved project was keyed against.
+      const prev = await loadCachedSeason(ym);
+      let data: SeasonData | null = force ? null : prev;
+      const cached = !!data;
       if (!data) {
         const html = await fetchSeasonHTML(ym);
         data = normalizeSeason(parseSeasonHTML(html, ym));
+        if (prev) data = carryOverSchedule(data, prev);
         await saveSeason(ym, html, data);
         setCachedSeasons(await listCachedSeasons());
       }
+      pruneLegacyCovers(ym);
 
       hydratedYm.current = null;
       const proj = await loadProject(ym);
-      setSelected(proj?.selected ?? {});
-      setScores(proj?.scores ?? {});
+      const sel = proj?.selected ?? {};
+      const sc = proj?.scores ?? {};
+      const legacy = [...Object.keys(sel), ...Object.keys(sc)].some(isLegacyKey);
+      const basis = prev ?? data;
+      setSelected(legacy ? migrateKeys(sel, basis) : sel);
+      setScores(legacy ? migrateKeys(sc, basis) : sc);
       setAddName(proj?.addName ?? true);
       setAddTime(proj?.addTime ?? true);
       setBorder(proj?.border ?? false);
@@ -152,6 +171,14 @@ export default function App() {
     }, 400);
     return () => clearTimeout(t);
   }, [selected, scores, addName, addTime, border, opacity, bg, season]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COVER_SCALE_KEY, String(coverScale));
+    } catch {
+      /* storage unavailable: the size just won't persist */
+    }
+  }, [coverScale]);
 
   async function confirmDeleteSeason(ym: string) {
     const yes = await ask(t("app.deleteConfirm", { ym }), {
@@ -306,6 +333,21 @@ export default function App() {
           )}
         </div>
         <div className="spacer" />
+        {season && (
+          <label className="opt opt--slider" title={t("app.coverSizeHint")}>
+            {t("app.coverSize")}
+            <input
+              type="range"
+              min={0.75}
+              max={3}
+              step={0.05}
+              value={coverScale}
+              onChange={(e) => setCoverScale(Number(e.target.value))}
+              onDoubleClick={() => setCoverScale(1)}
+            />
+            <span className="opt-val">{Math.round(coverScale * 100)}%</span>
+          </label>
+        )}
         <button className="chip" onClick={() => setShowSettings(true)}>
           {t("app.settings")}
         </button>
@@ -409,7 +451,10 @@ export default function App() {
       )}
 
       {season && (
-        <main className="board">
+        <main
+          className="board"
+          style={{ "--cover-w": `${Math.round(COVER_BASE_W * coverScale)}px` } as CSSProperties}
+        >
           {season.weekdays.map((wd) => {
             const entries = season.byDay[wd.day] || [];
             return (

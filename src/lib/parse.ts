@@ -24,10 +24,11 @@ function findEntryBlock(img: Element): Element {
 
 function cleanTitle(el: Element | null): string {
   if (!el) return "";
-  // Titles use <br> to wrap; join the lines and strip any stray tags.
-  const noBr = el.innerHTML.replace(/<br\s*\/?>/gi, "");
-  const text = noBr.replace(/<[^>]+>/g, "");
-  return text.replace(/\s+/g, " ").trim();
+  // Titles use <br> to wrap; join the lines. textContent strips stray tags and
+  // decodes entities (innerHTML would leak "&amp;" into the title).
+  const clone = el.cloneNode(true) as Element;
+  clone.querySelectorAll("br").forEach((br) => br.remove());
+  return (clone.textContent || "").replace(/\s+/g, " ").trim();
 }
 
 function extractTime(block: Element): string {

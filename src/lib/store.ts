@@ -3,11 +3,12 @@
  *
  *   seasons/<YYYYMM>/page.html        raw fetched page (re-parse offline if rules change)
  *   seasons/<YYYYMM>/data.json        parsed SeasonData
- *   seasons/<YYYYMM>/covers/<d.i>.jpg downloaded cover images (cache-first)
+ *   seasons/<YYYYMM>/covers/<id>.jpg  downloaded cover images (cache-first, id = entryKey)
  *   seasons/<YYYYMM>/background.png   chosen/generated background
  *   seasons/<YYYYMM>/project.json     selections, scores, options
  *
- * Nothing is ever deleted automatically — only via deleteSeason().
+ * Nothing is ever deleted automatically — only via deleteSeason(), plus the
+ * one-off cleanup of legacy position-named covers (pruneLegacyCovers).
  */
 import {
   BaseDirectory,
@@ -90,6 +91,21 @@ export async function getCoverBytes(ym: string, key: string, url: string): Promi
     /* cache write failure is non-fatal */
   }
   return bytes;
+}
+
+/**
+ * Remove covers cached under the old `<day>.<index>.jpg` names. Positions shift
+ * whenever the page is re-fetched, so those files may show the wrong anime.
+ */
+export async function pruneLegacyCovers(ym: string): Promise<void> {
+  try {
+    const files = await readDir(`${dir(ym)}/covers`, BASE);
+    for (const f of files) {
+      if (/^\d+\.\d+\.jpg$/.test(f.name)) await remove(`${dir(ym)}/covers/${f.name}`, BASE);
+    }
+  } catch {
+    /* no covers dir yet */
+  }
 }
 
 // ---- project (selections / scores / options) ----
