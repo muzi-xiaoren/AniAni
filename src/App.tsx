@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { fetchSeasonHTML, toYearMonth } from "./lib/fetch";
 import { parseSeasonHTML } from "./lib/parse";
 import { carryOverSchedule, entryKey, isLegacyKey, migrateKeys, normalizeSeason } from "./lib/schedule";
@@ -94,6 +95,9 @@ export default function App() {
   // Autosave is paused until the loaded season's project has been hydrated,
   // so restoring state doesn't immediately re-save (or clobber) it.
   const hydratedYm = useRef<string | null>(null);
+  // The debounced save that hasn't been written yet, so a season switch can
+  // flush it instead of dropping the last edit.
+  const pendingSave = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     initCjkFonts();
@@ -105,8 +109,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Write any not-yet-saved edit before the window closes. Registering this
+  // handler makes the JS side responsible for the close (it destroys the window
+  // once we return), hence the allow-destroy permission.
+  useEffect(() => {
+    const off = getCurrentWindow().onCloseRequested(async () => {
+      await pendingSave.current?.().catch(() => {});
+    });
+    return () => {
+      off.then((f) => f());
+    };
+  }, []);
+
+  // The native title bar doesn't follow document.title, so set it explicitly.
   useEffect(() => {
     document.title = t("app.brand");
+    getCurrentWindow().setTitle(t("app.brand")).catch(() => {});
   }, [t, i18n.language]);
 
   /** Open a season: local cache first unless `force`, fetching + caching on miss. */
@@ -114,6 +132,7 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
+      await pendingSave.current?.();
       // The cached data is also what any saved project was keyed against.
       const prev = await loadCachedSeason(ym);
       let data: SeasonData | null = force ? null : prev;
@@ -158,18 +177,15 @@ export default function App() {
   useEffect(() => {
     if (!season || hydratedYm.current !== season.yearMonth) return;
     const ym = season.yearMonth;
-    const t = setTimeout(() => {
-      saveProject(ym, {
-        selected,
-        scores,
-        addName,
-        addTime,
-        border,
-        opacity,
-        bgName: bg?.name ?? "",
-      }).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
+    const state = { selected, scores, addName, addTime, border, opacity, bgName: bg?.name ?? "" };
+    const save = async () => {
+      if (pendingSave.current !== save) return; // superseded or already written
+      pendingSave.current = null;
+      await saveProject(ym, state).catch(() => {});
+    };
+    pendingSave.current = save;
+    const timer = setTimeout(save, 400);
+    return () => clearTimeout(timer);
   }, [selected, scores, addName, addTime, border, opacity, bg, season]);
 
   useEffect(() => {
@@ -232,7 +248,7 @@ export default function App() {
   async function pickBackground() {
     try {
       const path = await open({
-        filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "webp"] }],
+        filters: [{ name: t("dialog.images"), extensions: ["png", "jpg", "jpeg", "webp"] }],
       });
       if (!path || Array.isArray(path)) return;
       const bytes = await readFile(path);
@@ -255,7 +271,13 @@ export default function App() {
     try {
       const ym = season.yearMonth;
       const covers = await Promise.all(
-        selectedEntries.map((e) => getCoverBytes(ym, keyOf(e), e.cover).then(bitmapFromBytes))
+        // A cover that can't be fetched/decoded becomes a grey placeholder
+        // instead of failing the whole collage.
+        selectedEntries.map((e) =>
+          getCoverBytes(ym, keyOf(e), e.cover)
+            .then(bitmapFromBytes)
+            .catch(() => null)
+        )
       );
       const background = bg ? await bitmapFromBytes(bg.bytes) : null;
       const items = selectedEntries.map((e, i) => ({
@@ -267,11 +289,20 @@ export default function App() {
       }));
 
       const canvas = document.createElement("canvas");
-      renderToCanvas(canvas, { items, background, addName, addTime, border, opacity });
+      try {
+        renderToCanvas(canvas, { items, background, addName, addTime, border, opacity });
+      } finally {
+        // Decoded bitmaps are only needed for this one draw; free them now
+        // instead of waiting on GC (a big background is tens of MB each time).
+        covers.forEach((c) => c?.close());
+        background?.close();
+      }
       const bytes = await canvasToPngBytes(canvas);
       const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/png" }));
       if (preview) URL.revokeObjectURL(preview.url);
       setPreview({ url, bytes, width: canvas.width, height: canvas.height });
+      const missing = selectedEntries.filter((_, i) => !covers[i]).map((e) => e.title);
+      if (missing.length) setSaveMsg({ ok: false, text: t("app.coversMissing", { names: missing.join("、") }) });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -355,7 +386,7 @@ export default function App() {
           className="lang-select"
           value={i18n.resolvedLanguage}
           onChange={(e) => setLang(e.target.value)}
-          aria-label="Language"
+          aria-label={t("app.language")}
         >
           {LANGS.map((l) => (
             <option key={l.code} value={l.code}>

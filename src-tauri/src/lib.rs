@@ -5,6 +5,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
+        // Remembers folders granted through the folder picker (an export dir
+        // outside $HOME) across restarts. Must come after the fs plugin.
+        .plugin(tauri_plugin_persisted_scope::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

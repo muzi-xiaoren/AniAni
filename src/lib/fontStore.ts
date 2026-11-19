@@ -9,7 +9,8 @@
  */
 import { useSyncExternalStore } from "react";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { BaseDirectory, exists, mkdir, readFile, remove } from "@tauri-apps/plugin-fs";
+import { BaseDirectory, exists, mkdir, readFile, remove, writeFile } from "@tauri-apps/plugin-fs";
+import i18n from "../i18n";
 
 export interface CjkFont {
   id: string; // file name stem
@@ -84,7 +85,7 @@ export async function initCjkFonts(): Promise<void> {
 /** Download one font (tries mirrors in order), store it, register it. */
 export async function downloadCjkFont(id: string): Promise<void> {
   const font = CJK_FONTS.find((f) => f.id === id);
-  if (!font) throw new Error(`未知字体: ${id}`);
+  if (!font) throw new Error(i18n.t("errors.unknownFont", { id }));
   let bytes: Uint8Array | null = null;
   let lastErr = "";
   for (const base of CDN_BASES) {
@@ -99,9 +100,8 @@ export async function downloadCjkFont(id: string): Promise<void> {
       lastErr = e instanceof Error ? e.message : String(e);
     }
   }
-  if (!bytes) throw new Error(`下载失败(${lastErr})`);
+  if (!bytes) throw new Error(i18n.t("errors.downloadFailed", { err: lastErr }));
   await mkdir(FONTS_DIR, { ...BASE, recursive: true });
-  const { writeFile } = await import("@tauri-apps/plugin-fs");
   await writeFile(fontFile(id), bytes, BASE);
   await register(font, bytes);
   if (!installed.includes(id)) {

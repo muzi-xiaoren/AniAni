@@ -7,6 +7,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const [dir, setDir] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadSettings().then((s) => setDir(s.outputDir));
@@ -14,7 +15,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
   async function pick() {
     try {
-      const p = await open({ directory: true, defaultPath: dir || undefined });
+      // recursive: images go into before/ after/ wordcloud/ subfolders.
+      const p = await open({ directory: true, recursive: true, defaultPath: dir || undefined });
       if (p && !Array.isArray(p)) setDir(p);
     } catch {
       /* cancelled */
@@ -27,9 +29,12 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
   async function save() {
     setBusy(true);
+    setError("");
     try {
       await saveSettings({ outputDir: dir });
       onClose();
+    } catch (e) {
+      setError(t("app.saveFailed", { err: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusy(false);
     }
@@ -66,6 +71,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <p className="settings-note">{t("settings.note")}</p>
         </div>
         <div className="modal-foot">
+          {error && (
+            <span className="save-msg save-msg--err" title={error}>
+              {error}
+            </span>
+          )}
           <div className="spacer" />
           <button className="btn-ghost" onClick={onClose}>
             {t("common.cancel")}

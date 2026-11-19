@@ -48,6 +48,8 @@ const resources = {
         saving: "保存中…",
         savedTo: "已保存到 {{path}}",
         saveFailed: "保存失败:{{err}}",
+        coversMissing: "以下番剧的封面没取到,已用灰块代替:{{names}}",
+        language: "语言",
       },
       season: { winter: "1月 · 冬", spring: "4月 · 春", summer: "7月 · 夏", autumn: "10月 · 秋" },
       settings: {
@@ -56,7 +58,7 @@ const resources = {
         choose: "选择文件夹…",
         reset: "恢复默认",
         save: "保存",
-        note: "词云背景 → wordcloud 子文件夹;不打分贴贴图 → before;打分贴贴图 → after。需选用户主目录(~)下的文件夹。",
+        note: "词云背景 → wordcloud 子文件夹;不打分贴贴图 → before;打分贴贴图 → after。主目录(~)以外的位置请用「选择文件夹…」来选,手动填写的路径只在主目录下有效。",
       },
       studio: {
         title: "词云背景生成器",
@@ -95,6 +97,8 @@ const resources = {
         useAsBg: "用作背景",
         rendering: "生成中…",
         textOpacity: "字体透明度 (%)",
+        customFontName: "自定义字体",
+        shapeImageName: "形状图",
         download: "下载词云",
       },
       fontMgr: {
@@ -111,6 +115,13 @@ const resources = {
       bgColor: { white: "白", cream: "米白", gray: "浅灰", transparent: "透明" },
       fontGroup: { script: "手写 / 花体", poster: "粗体 / 海报", fun: "趣味 / 特色", cjk: "系统中文" },
       font: { heiti: "系统黑体", songti: "系统宋体", kaiti: "系统楷体" },
+      dialog: { images: "图片", fonts: "字体" },
+      errors: {
+        fetchPage: "抓取页面失败:HTTP {{status}}({{url}})",
+        fetchImage: "图片下载失败:HTTP {{status}}",
+        unknownFont: "未知字体:{{id}}",
+        downloadFailed: "下载失败({{err}})",
+      },
     },
   },
   en: {
@@ -152,6 +163,8 @@ const resources = {
         saving: "Saving…",
         savedTo: "Saved to {{path}}",
         saveFailed: "Save failed: {{err}}",
+        coversMissing: "Covers unavailable, shown as grey blocks: {{names}}",
+        language: "Language",
       },
       season: { winter: "Jan · Winter", spring: "Apr · Spring", summer: "Jul · Summer", autumn: "Oct · Autumn" },
       settings: {
@@ -160,7 +173,7 @@ const resources = {
         choose: "Choose folder…",
         reset: "Reset to default",
         save: "Save",
-        note: "Word clouds → wordcloud/ ; collages without scores → before/ ; with scores → after/. Pick a folder under your home directory (~).",
+        note: "Word clouds → wordcloud/ ; collages without scores → before/ ; with scores → after/. For a location outside your home directory (~), use "Choose folder…" — a typed path only works under home.",
       },
       studio: {
         title: "Word-cloud background studio",
@@ -199,6 +212,8 @@ const resources = {
         useAsBg: "Use as background",
         rendering: "Rendering…",
         textOpacity: "Text opacity (%)",
+        customFontName: "Custom font",
+        shapeImageName: "Shape image",
         download: "Download word cloud",
       },
       fontMgr: {
@@ -215,6 +230,13 @@ const resources = {
       bgColor: { white: "White", cream: "Cream", gray: "Light gray", transparent: "Transparent" },
       fontGroup: { script: "Script / Handwriting", poster: "Bold / Poster", fun: "Fun / Display", cjk: "System CJK" },
       font: { heiti: "System Sans", songti: "System Serif", kaiti: "System Kai" },
+      dialog: { images: "Images", fonts: "Fonts" },
+      errors: {
+        fetchPage: "Failed to fetch the page: HTTP {{status}} ({{url}})",
+        fetchImage: "Image download failed: HTTP {{status}}",
+        unknownFont: "Unknown font: {{id}}",
+        downloadFailed: "Download failed ({{err}})",
+      },
     },
   },
   ja: {
@@ -256,6 +278,8 @@ const resources = {
         saving: "保存中…",
         savedTo: "保存しました: {{path}}",
         saveFailed: "保存失敗: {{err}}",
+        coversMissing: "カバーを取得できず、グレーで代用しました:{{names}}",
+        language: "言語",
       },
       season: { winter: "1月 · 冬", spring: "4月 · 春", summer: "7月 · 夏", autumn: "10月 · 秋" },
       settings: {
@@ -264,7 +288,7 @@ const resources = {
         choose: "フォルダを選択…",
         reset: "デフォルトに戻す",
         save: "保存",
-        note: "ワードクラウド → wordcloud/、評価なし → before/、評価あり → after/。ホームディレクトリ(~)配下のフォルダを選んでください。",
+        note: "ワードクラウド → wordcloud/、評価なし → before/、評価あり → after/。ホームディレクトリ(~)の外に保存する場合は「フォルダを選択…」で選んでください(手入力のパスはホーム配下のみ有効)。",
       },
       studio: {
         title: "ワードクラウド背景スタジオ",
@@ -303,6 +327,8 @@ const resources = {
         useAsBg: "背景に使用",
         rendering: "生成中…",
         textOpacity: "文字の不透明度 (%)",
+        customFontName: "カスタムフォント",
+        shapeImageName: "シェイプ画像",
         download: "ワードクラウドを保存",
       },
       fontMgr: {
@@ -319,6 +345,13 @@ const resources = {
       bgColor: { white: "白", cream: "クリーム", gray: "ライトグレー", transparent: "透明" },
       fontGroup: { script: "手書き / 筆記体", poster: "太字 / ポスター", fun: "ユニーク / 表示用", cjk: "システム書体" },
       font: { heiti: "ゴシック体", songti: "明朝体", kaiti: "楷書体" },
+      dialog: { images: "画像", fonts: "フォント" },
+      errors: {
+        fetchPage: "ページの取得に失敗しました:HTTP {{status}}({{url}})",
+        fetchImage: "画像のダウンロードに失敗しました:HTTP {{status}}",
+        unknownFont: "不明なフォント:{{id}}",
+        downloadFailed: "ダウンロードに失敗しました({{err}})",
+      },
     },
   },
 };

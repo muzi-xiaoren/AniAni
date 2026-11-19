@@ -7,9 +7,9 @@
  *   <base>/before/<ym>_before.png         collage WITHOUT scores (不打分)
  *   <base>/after/<ym>_after.png           collage WITH scores (打分)
  *
- * Default base = <home>/追番贴贴. It must live under the user's home directory:
- * the app's file-access scope is $HOME/**, and OS permissions usually forbid
- * writing next to the installed app anyway.
+ * Default base = <home>/追番贴贴. The app's static file-access scope is $HOME/**;
+ * a folder elsewhere works only when chosen through the folder picker, which
+ * grants it at runtime (kept across restarts by tauri-plugin-persisted-scope).
  */
 import { BaseDirectory, exists, mkdir, readTextFile, writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { homeDir, join } from "@tauri-apps/api/path";

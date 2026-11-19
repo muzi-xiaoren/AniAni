@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { bitmapFromBytes, canvasToPngBytes } from "../lib/compose";
-import { FONTS, FONT_GROUPS, PALETTES, ROTATION_MODES, SHAPES, renderWordCloud, stopWordCloud } from "../lib/wordcloud";
+import { FONTS, FONT_GROUPS, PALETTES, ROTATION_MODES, SHAPES, renderWordCloud } from "../lib/wordcloud";
 import { CJK_FONTS, useInstalledCjkFonts } from "../lib/fontStore";
 import { loadSettings, downloadWordCloud } from "../lib/settings";
 import { FontManager } from "./FontManager";
@@ -99,6 +99,7 @@ export function BackgroundStudio({ seasonTitles, ym, onApply, onClose }: Props) 
   // Tracks whether a press *started* on the backdrop, so dragging a slider past
   // its end and releasing on the backdrop doesn't get treated as a close click.
   const downOnBackdrop = useRef(false);
+  const customFace = useRef<FontFace | null>(null);
   const [text, setText] = useState("renyeren");
   const [shape, setShape] = useState("square");
   const [palette, setPalette] = useState("pastel");
@@ -137,36 +138,47 @@ export function BackgroundStudio({ seasonTitles, ym, onApply, onClose }: Props) 
     if (!canvas) return;
     const { w, h } = aspectDims(aspect, mask);
     setRendering(true);
-    renderWordCloud(canvas, {
-      text,
-      shape,
-      palette,
-      bgColor,
-      width: w,
-      height: h,
-      rotate,
-      rotationMode,
-      fontFamily,
-      density,
-      sizeScale,
-      textOpacity,
-      mask: mask ? { image: mask, invert, colorFromImage, threshold, edges } : null,
-    }).then(() => setRendering(false));
-    return () => stopWordCloud();
+    const ac = new AbortController();
+    renderWordCloud(
+      canvas,
+      {
+        text,
+        shape,
+        palette,
+        bgColor,
+        width: w,
+        height: h,
+        rotate,
+        rotationMode,
+        fontFamily,
+        density,
+        sizeScale,
+        textOpacity,
+        mask: mask ? { image: mask, invert, colorFromImage, threshold, edges } : null,
+      },
+      ac.signal
+    ).then(() => {
+      if (!ac.signal.aborted) setRendering(false);
+    });
+    return () => ac.abort();
     // text is read fresh whenever another control or 重新生成 triggers a render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shape, palette, bgColor, aspect, rotate, rotationMode, fontFamily, density, sizeScale, textOpacity, nonce, mask, invert, colorFromImage, threshold, edges]);
 
   async function uploadFont() {
     try {
-      const path = await open({ filters: [{ name: "字体", extensions: ["ttf", "otf", "woff", "woff2"] }] });
+      const path = await open({ filters: [{ name: t("dialog.fonts"), extensions: ["ttf", "otf", "woff", "woff2"] }] });
       if (!path || Array.isArray(path)) return;
       const bytes = await readFile(path);
-      const family = "WCUserFont";
+      // A fresh family per upload: re-registering the same name would keep
+      // resolving to the first font, and the unchanged value wouldn't re-render.
+      const family = `WCUserFont${Date.now()}`;
       const face = new FontFace(family, bytes);
       await face.load();
+      if (customFace.current) document.fonts.delete(customFace.current);
       document.fonts.add(face);
-      setCustomFont({ family, name: path.split(/[/\\]/).pop() || "自定义字体" });
+      customFace.current = face;
+      setCustomFont({ family, name: path.split(/[/\\]/).pop() || t("studio.customFontName") });
       setFontFamily(`"${family}",sans-serif`);
     } catch {
       /* cancelled or unsupported font */
@@ -175,11 +187,11 @@ export function BackgroundStudio({ seasonTitles, ym, onApply, onClose }: Props) 
 
   async function pickMask() {
     try {
-      const path = await open({ filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "webp"] }] });
+      const path = await open({ filters: [{ name: t("dialog.images"), extensions: ["png", "jpg", "jpeg", "webp"] }] });
       if (!path || Array.isArray(path)) return;
       const bytes = await readFile(path);
       setMask(await bitmapFromBytes(bytes));
-      setMaskName(path.split(/[/\\]/).pop() || "形状图");
+      setMaskName(path.split(/[/\\]/).pop() || t("studio.shapeImageName"));
       setAspect("image"); // follow the uploaded image's own ratio by default
     } catch {
       /* user cancelled or decode failed */

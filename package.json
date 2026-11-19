@@ -1,7 +1,7 @@
 {
   "name": "anime-tietie",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:parse": "tsx test/parse.test.ts"
+    "test:parse": "tsx test/parse.test.ts",
+    "test:compose": "tsx test/compose.test.ts",
+    "test:schedule": "tsx test/schedule.test.ts"
   },
   "dependencies": {
     "@fontsource/abril-fatface": "^5.2.7",

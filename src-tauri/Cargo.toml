@@ -1,10 +1,11 @@
 [package]
 name = "app"
-version = "1.0.2"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+# Not the app version: that lives in package.json (tauri.conf.json points at it).
+version = "0.0.0"
+description = "Seasonal anime collage maker"
+authors = ["muzi-xiaoren"]
+license = "Apache-2.0"
+repository = "https://github.com/muzi-xiaoren/AniAni"
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -18,8 +19,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
@@ -27,3 +26,4 @@ tauri-plugin-http = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
+tauri-plugin-persisted-scope = "2"

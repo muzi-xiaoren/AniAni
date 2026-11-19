@@ -20,7 +20,7 @@ export interface RenderItem {
   title: string;
   subtitle: string; // e.g. "周一 (月) 21:00"
   score: string; // "" when not scored
-  cover: ImageBitmap;
+  cover: ImageBitmap | null; // null = unavailable, drawn as a grey placeholder
 }
 
 export interface RenderConfig {
@@ -85,6 +85,15 @@ function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
   ctx.closePath();
 }
 
+function drawCover(ctx: CanvasRenderingContext2D, cover: ImageBitmap | null, x: number, y: number) {
+  if (cover) {
+    ctx.drawImage(cover, x, y, COVER_W, COVER_H);
+  } else {
+    ctx.fillStyle = "#d5d9e0";
+    ctx.fillRect(x, y, COVER_W, COVER_H);
+  }
+}
+
 function drawItem(ctx: CanvasRenderingContext2D, item: RenderItem, x: number, y: number, cfg: RenderConfig) {
   ctx.save();
   ctx.globalAlpha = cfg.opacity;
@@ -106,7 +115,7 @@ function drawItem(ctx: CanvasRenderingContext2D, item: RenderItem, x: number, y:
     ctx.save();
     roundRectPath(ctx, coverX, coverY, COVER_W, COVER_H, 8);
     ctx.clip();
-    ctx.drawImage(item.cover, coverX, coverY, COVER_W, COVER_H);
+    drawCover(ctx, item.cover, coverX, coverY);
     ctx.restore();
   } else {
     // No frame: rounded cover with a shadow so it still lifts off the bg.
@@ -121,7 +130,7 @@ function drawItem(ctx: CanvasRenderingContext2D, item: RenderItem, x: number, y:
     ctx.save();
     roundRectPath(ctx, coverX, coverY, COVER_W, COVER_H, 12);
     ctx.clip();
-    ctx.drawImage(item.cover, coverX, coverY, COVER_W, COVER_H);
+    drawCover(ctx, item.cover, coverX, coverY);
     ctx.restore();
   }
 

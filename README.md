@@ -20,8 +20,6 @@
 
 ### 截图
 
-> 首次查看请先把 [`docs/screenshots/`](docs/screenshots) 里对应的图片补上（见该目录说明）。
-
 | 主界面（按星期横向排布） | 词云背景生成器 | 生成预览 |
 | --- | --- | --- |
 | ![主界面](docs/screenshots/01-board.png) | ![词云](docs/screenshots/02-studio.png) | ![预览](docs/screenshots/03-preview.png) |
@@ -30,9 +28,9 @@
 
 - **按年份 + 季度抓取**：选 `2026 年 / 4月·春` 即自动请求 `https://yuc.wiki/202604/`，无需手填网址。
 - **本地缓存归档**：每个季度的页面、封面、背景、勾选记录都缓存在本地；启动自动打开最近一个季度，可在「已缓存」栏切换/删除，离线可用。
-- **挑选 + 评分**：点卡片勾选，可给每部番填 0–10 评分。
-- **贴贴图合成**（HTML Canvas）：自动按背景比例排版，白色相片边框（可关）、阴影、名称/时间/评分开关、背景透明度。
-- **词云背景生成器**：自选文字 / 用本季番名填充；30+ 内置开源英文字体 + 可下载中文字体 + 上传自定义字体；形状、配色、排布、旋转、密度、字号、**字体透明度**；可上传图片做形状蒙版（阈值 + 边缘检测，词语只落在图片的部分区域且不被切断）。
+- **挑选 + 评分**：点卡片勾选，可给每部番填 0–10 评分；右上角「封面大小」滑块可调看板里封面的显示尺寸。
+- **贴贴图合成**（HTML Canvas）：自动按背景比例排版，白色相片边框（可关）、阴影、名称/时间/评分开关、封面透明度。
+- **词云背景生成器**：自选文字 / 用本季番名填充；28 款内置开源英文字体 + 可下载中文字体 + 上传自定义字体；形状、配色、排布、旋转、密度、字号、**字体透明度**；可上传图片做形状蒙版（阈值 + 边缘检测，词语只落在图片的部分区域且不被切断）。
 - **自动下载 + 状态提示**：词云背景、贴贴图直接写入设置好的文件夹（无系统对话框），界面显示「保存中 → 成功 / 失败」。
 - **多语言**：中文 / English / 日本語（右上角切换）。
 
@@ -46,17 +44,17 @@
 | macOS · Intel | `*_x64.dmg` |
 | Windows x64 | `*_x64-setup.exe`（推荐）或 `*_x64_en-US.msi` |
 
-> `*.app.tar.gz` 是自动更新用的包，普通安装请忽略。
+> `*.app.tar.gz` 是 macOS 应用的压缩包，普通安装请忽略。
 > 应用未做代码签名：macOS 首次打开如提示「无法验证/已损坏」，**右键图标 → 打开**；Windows 若有 SmartScreen，点「更多信息 → 仍要运行」。
 
 ### 生成的图片保存在哪
 
-- 默认保存目录：`~/追番贴贴`（可在「设置」里改成主目录下任意文件夹）。
+- 默认保存目录：`~/追番贴贴`（可在「设置」里修改）。
 - 按类型分文件夹：
   - 词云背景 → `wordcloud/<年月>_wordcloud.png`
   - 不打分贴贴图 → `before/<年月>_before.png`
   - 打分贴贴图 → `after/<年月>_after.png`（勾选工具栏「打分」时）
-- 受应用文件访问范围限制，保存目录需在用户主目录（`~`）之下。
+- 保存到主目录（`~`）以外的位置时，请在设置里用「选择文件夹…」来选（手动填写的路径只在主目录下有效）。
 
 ### 技术栈
 
@@ -67,7 +65,7 @@
 ```
 anime-tietie/
 ├─ src/                       前端 (React + TS)
-│  ├─ App.tsx / App.css       主界面：季度抓取、看板、工具栏、设置/语言入口
+│  ├─ App.tsx / App.css       主界面：季度抓取、看板、工具栏、封面大小、设置/语言入口
 │  ├─ main.tsx                入口（挂载 React、引入字体与 i18n）
 │  ├─ i18n.ts                 多语言资源 (zh/en/ja) 与切换
 │  ├─ fonts.ts                内置开源英文字体 (@fontsource) 导入
@@ -81,7 +79,7 @@ anime-tietie/
 │     ├─ types.ts             数据类型 (AnimeEntry / SeasonData …)
 │     ├─ parseRules.ts        解析选择器（站点改版时改这里）
 │     ├─ parse.ts             解析 yuc.wiki 页面（结构锚定，抗类名漂移）
-│     ├─ schedule.ts          排期归一化（>=24:00 顺延、排序、重编号）
+│     ├─ schedule.ts          排期归一化（>=24:00 顺延、排序、重编号）、条目稳定 id、重抓后沿用旧时间
 │     ├─ fetch.ts             抓页面/封面（Tauri http，绕过 CORS/混合内容）
 │     ├─ store.ts             按季度本地缓存（页面/数据/封面/背景/项目）
 │     ├─ settings.ts          设置 + 图片导出（before/after/wordcloud）
@@ -107,7 +105,9 @@ npm install          # 安装前端依赖
 npm run tauri dev    # 启动桌面应用（开发模式，热更新）
 npm run build        # 仅类型检查 + 构建前端 (tsc + vite)
 npm run tauri build  # 打本地安装包
-npm run test:parse   # 离线解析测试
+npm run test:parse   # 离线解析测试（打印解析结果）
+npm run test:compose # 排版计算测试
+npm run test:schedule # 排期 / 条目 id / 重抓沿用旧时间测试
 ```
 
 > 改动 `src-tauri/capabilities/*` 等权限文件后，需重启 `npm run tauri dev` 才生效。
@@ -119,16 +119,17 @@ npm run test:parse   # 离线解析测试
 发新版本：
 
 ```bash
-# 1. 同步改版本号：src-tauri/tauri.conf.json、package.json、src-tauri/Cargo.toml
+# 1. 改版本号（只有 package.json 一处，tauri.conf.json 会读它）
+npm version 1.1.0 --no-git-tag-version
 # 2. 提交并推送
 git commit -am "Release v1.1.0" && git push
-# 3. 打同名 tag 触发构建（Release 标签取自 tauri.conf.json 的 version）
+# 3. 打同名 tag 触发构建（Release 标签取自 package.json 的 version）
 git tag v1.1.0 && git push origin v1.1.0
 ```
 
 ### 字体 / 多语言
 
-- **字体**：内置 30+ 款 OFL 开源英文字体（随包，跨系统渲染一致）；中文字体体积大，做成「可下载/可删除」；也支持上传自己的字体。
+- **字体**：内置 28 款 OFL 开源英文字体（随包，跨系统渲染一致）；中文字体体积大，做成「可下载/可删除」；也支持上传自己的字体。
 - **多语言**：`src/i18n.ts` 内置 zh/en/ja。新增语言：在 `LANGS` 加一项并补一段 `resources`。
 
 ### 致谢
@@ -148,8 +149,6 @@ Data source: [yuc.wiki](https://yuc.wiki). This is a desktop rewrite of an earli
 
 ### Screenshots
 
-> Add the images under [`docs/screenshots/`](docs/screenshots) first (see the note in that folder).
-
 | Main board (rows per weekday) | Word-cloud studio | Render preview |
 | --- | --- | --- |
 | ![board](docs/screenshots/01-board.png) | ![studio](docs/screenshots/02-studio.png) | ![preview](docs/screenshots/03-preview.png) |
@@ -158,9 +157,9 @@ Data source: [yuc.wiki](https://yuc.wiki). This is a desktop rewrite of an earli
 
 - **Fetch by year + season** — pick `2026 / Apr·Spring` and it requests `https://yuc.wiki/202604/`; no URL typing.
 - **Local cache** — each season's page, covers, background and selections are cached; the most recent season opens on launch; switch/delete in the "Cached" bar; works offline.
-- **Pick + score** — click cards to select, give each show a 0–10 score.
-- **Collage compositing** (HTML Canvas) — auto-layout to the background's aspect ratio, white photo border (toggle), shadows, name/time/score toggles, background opacity.
-- **Word-cloud studio** — custom text or fill with the season's titles; 30+ bundled OSS Latin fonts + downloadable CJK fonts + custom font upload; shape, palette, layout, rotation, density, size and **text opacity**; upload an image as a shape mask (threshold + edge detection — words fill only part of the image and are never clipped mid-glyph).
+- **Pick + score** — click cards to select, give each show a 0–10 score; the "Cover size" slider (top-right) resizes the covers on the board.
+- **Collage compositing** (HTML Canvas) — auto-layout to the background's aspect ratio, white photo border (toggle), shadows, name/time/score toggles, cover opacity.
+- **Word-cloud studio** — custom text or fill with the season's titles; 28 bundled OSS Latin fonts + downloadable CJK fonts + custom font upload; shape, palette, layout, rotation, density, size and **text opacity**; upload an image as a shape mask (threshold + edge detection — words fill only part of the image and are never clipped mid-glyph).
 - **Auto-download + status** — word clouds and collages are written straight to your chosen folder (no OS dialog) with a saving → success/failure status.
 - **i18n** — 中文 / English / 日本語 (switch top-right).
 
@@ -174,14 +173,14 @@ Grab the right file from [Releases](https://github.com/muzi-xiaoren/AniAni/relea
 | macOS · Intel | `*_x64.dmg` |
 | Windows x64 | `*_x64-setup.exe` (recommended) or `*_x64_en-US.msi` |
 
-> `*.app.tar.gz` are auto-updater archives — ignore them for a normal install.
+> `*.app.tar.gz` are archives of the macOS app — ignore them for a normal install.
 > The app is unsigned: on macOS, if you see "cannot verify / is damaged", **right-click the icon → Open**; on Windows, click "More info → Run anyway" on SmartScreen.
 
 ### Where images are saved
 
-- Default folder: `~/追番贴贴` (changeable in **Settings** to any folder under your home directory).
+- Default folder: `~/追番贴贴` (changeable in **Settings**).
 - Split by kind: word clouds → `wordcloud/`, unscored collages → `before/<ym>_before.png`, scored collages → `after/<ym>_after.png` (when the "Scored" toggle is on).
-- The folder must live under your home directory (`~`) due to the app's file-access scope.
+- For a location outside your home directory (`~`), pick it with "Choose folder…" in Settings (a typed path only works under home).
 
 ### Tech stack
 
@@ -200,14 +199,16 @@ npm install          # frontend deps
 npm run tauri dev    # run the desktop app (dev, hot-reload)
 npm run build        # type-check + build frontend (tsc + vite)
 npm run tauri build  # build local installers
-npm run test:parse   # offline parser test
+npm run test:parse   # offline parser check (prints the parsed season)
+npm run test:compose # layout math test
+npm run test:schedule # schedule / entry-id / re-fetch carry-over test
 ```
 
 > After editing `src-tauri/capabilities/*` (permissions), restart `npm run tauri dev`.
 
 ### Build & Release (CI)
 
-`.github/workflows/release.yml` uses [`tauri-action`](https://github.com/tauri-apps/tauri-action) to build and **auto-publish** a Release (macOS split into Intel/Apple Silicon `.dmg`s; Windows `.msi` + `.exe`). To cut a release: bump the version in `tauri.conf.json` + `package.json` + `Cargo.toml`, commit, then push a matching `vX.Y.Z` tag.
+`.github/workflows/release.yml` uses [`tauri-action`](https://github.com/tauri-apps/tauri-action) to build and **auto-publish** a Release (macOS split into Intel/Apple Silicon `.dmg`s; Windows `.msi` + `.exe`). To cut a release: bump the version with `npm version X.Y.Z --no-git-tag-version` (package.json is the single source), commit, then push a matching `vX.Y.Z` tag.
 
 ### Credits
 

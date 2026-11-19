@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseHTML } from "linkedom";
 import { parseSeasonDocument } from "../src/lib/parse";
-import { normalizeSeason } from "../src/lib/schedule";
+import { entryKey, normalizeSeason } from "../src/lib/schedule";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, "fixtures", "202604.html"), "utf-8");
@@ -40,3 +40,16 @@ console.log("\n========== 体检 ==========");
 console.log(`分类数: ${data.weekdays.length}`);
 console.log(`番剧总数: ${total}`);
 console.log(`缺标题: ${noTitle}   缺封面: ${noCover}   缺时间: ${noTime}`);
+
+// The fixture is a known-good page: these must hold or the selectors have rotted.
+const keys = new Set(all.map(entryKey));
+const problems = [
+  data.weekdays.length < 7 && `分类数不足 7: ${data.weekdays.length}`,
+  total === 0 && "没有解析出任何番剧",
+  noTitle > 0 && `${noTitle} 部缺标题`,
+  noCover > 0 && `${noCover} 部缺封面`,
+  keys.size !== all.length && `条目 id 重复: ${all.length - keys.size} 个`,
+  all.some((e) => /&\w+;|<br/i.test(e.title)) && "标题里残留 HTML",
+].filter(Boolean);
+console.log(problems.length ? `\n${problems.join("\n")} ❌` : "\n全部通过 ✅");
+if (problems.length) process.exit(1);

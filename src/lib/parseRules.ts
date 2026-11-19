@@ -13,6 +13,8 @@
  *   - air time is text shaped like `HH:MM~`
  *
  * If the site ever changes drastically, this is the single file to tweak.
+ * (A new cover CDN host also needs adding to the http scope in
+ * src-tauri/capabilities/default.json — currently hdslb.com and imgs.ovh.)
  */
 export const parseRules = {
   // Weekday / category header cell. Its text is the display name.
@@ -28,6 +30,4 @@ export const parseRules = {
   // Air time, matched on CONTENT not class — survives any class rename.
   timeRegex: /(\d{1,2}):(\d{2})/,
   startDateRegex: /(\d{1,2}\/\d{1,2})/,
-  // Known cover CDN hosts (kept in sync with capabilities http scope).
-  imageHosts: ["hdslb.com", "imgs.ovh"],
 };

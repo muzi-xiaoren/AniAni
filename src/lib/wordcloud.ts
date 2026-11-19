@@ -1,21 +1,22 @@
 import WordCloud from "wordcloud";
 
-export const PALETTES: Record<string, { label: string; colors: string[] }> = {
-  pastel: { label: "马卡龙", colors: ["#ff9aa2", "#ffb7b2", "#ffdac1", "#b5ead7", "#c7ceea", "#f7c6ff"] },
-  candy: { label: "糖果", colors: ["#ff6aa2", "#8a6cff", "#ffd166", "#06d6a0", "#118ab2"] },
-  cool: { label: "清凉", colors: ["#4dabf7", "#3bc9db", "#748ffc", "#9775fa", "#5c7cfa"] },
-  warm: { label: "暖阳", colors: ["#ff6b6b", "#f06595", "#ff922b", "#fab005", "#e8590c"] },
-  ink: { label: "墨灰", colors: ["#343a40", "#495057", "#868e96", "#adb5bd"] },
+export const PALETTES: Record<string, { colors: string[] }> = {
+  pastel: { colors: ["#ff9aa2", "#ffb7b2", "#ffdac1", "#b5ead7", "#c7ceea", "#f7c6ff"] },
+  candy: { colors: ["#ff6aa2", "#8a6cff", "#ffd166", "#06d6a0", "#118ab2"] },
+  cool: { colors: ["#4dabf7", "#3bc9db", "#748ffc", "#9775fa", "#5c7cfa"] },
+  warm: { colors: ["#ff6b6b", "#f06595", "#ff922b", "#fab005", "#e8590c"] },
+  ink: { colors: ["#343a40", "#495057", "#868e96", "#adb5bd"] },
 };
 
-export const SHAPES: { value: string; label: string }[] = [
-  { value: "square", label: "铺满" },
-  { value: "circle", label: "圆形" },
-  { value: "cardioid", label: "心形" },
-  { value: "diamond", label: "菱形" },
-  { value: "triangle", label: "三角" },
-  { value: "pentagon", label: "五边形" },
-  { value: "star", label: "星形" },
+// Display labels for palettes / shapes / rotation modes live in i18n.ts.
+export const SHAPES: { value: string }[] = [
+  { value: "square" },
+  { value: "circle" },
+  { value: "cardioid" },
+  { value: "diamond" },
+  { value: "triangle" },
+  { value: "pentagon" },
+  { value: "star" },
 ];
 
 // Font options, grouped for an <optgroup> picker. Bundled Latin fonts (shipped
@@ -84,7 +85,7 @@ export const FONT_GROUPS: FontGroup[] = [
   {
     group: "cjk",
     fonts: [
-      { value: '"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif', label: "System Sans", tkey: "font.heiti" },
+      { value: CJK_FALLBACK, label: "System Sans", tkey: "font.heiti" },
       { value: '"Songti SC","STSong","SimSun",serif', label: "System Serif", tkey: "font.songti" },
       { value: '"Kaiti SC","STKaiti","KaiTi",cursive', label: "System Kai", tkey: "font.kaiti" },
     ],
@@ -94,11 +95,11 @@ export const FONT_GROUPS: FontGroup[] = [
 // Flat list (used for default selection and any non-grouped consumers).
 export const FONTS = FONT_GROUPS.flatMap((g) => g.fonts);
 
-export const ROTATION_MODES: { value: string; label: string }[] = [
-  { value: "tilt", label: "轻微倾斜" },
-  { value: "h", label: "仅水平" },
-  { value: "hv", label: "水平/垂直" },
-  { value: "any", label: "任意角度" },
+export const ROTATION_MODES: { value: string }[] = [
+  { value: "tilt" },
+  { value: "h" },
+  { value: "hv" },
+  { value: "any" },
 ];
 
 function rotationParams(mode: string) {
@@ -137,8 +138,6 @@ export interface WordCloudConfig {
   textOpacity: number; // 0..1 alpha of the words (lower = lighter, easier to read covers on top)
   mask?: MaskConfig | null;
 }
-
-const FONT = '"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans CJK SC",sans-serif';
 
 function buildList(text: string, density = 1): [string, number][] {
   const words = text
@@ -263,8 +262,17 @@ function imageColorFn(src: ImageData, palette: string[], alpha: number) {
 /**
  * Render a word cloud into `canvas`. Resolves when wordcloud2 finishes
  * (it draws progressively), with a timeout fallback.
+ *
+ * Abort `signal` when the config changes or the canvas goes away: wordcloud2
+ * fires no event for an interrupted run, so without it this run's finish step
+ * would stay subscribed and later composite its (stale) mask and background
+ * over whichever render completes next on the same canvas.
  */
-export async function renderWordCloud(canvas: HTMLCanvasElement, cfg: WordCloudConfig): Promise<void> {
+export async function renderWordCloud(
+  canvas: HTMLCanvasElement,
+  cfg: WordCloudConfig,
+  signal?: AbortSignal
+): Promise<void> {
   canvas.width = cfg.width;
   canvas.height = cfg.height;
   const ctx = canvas.getContext("2d")!;
@@ -277,6 +285,7 @@ export async function renderWordCloud(canvas: HTMLCanvasElement, cfg: WordCloudC
   } catch {
     /* font may already be present or unavailable; fall back gracefully */
   }
+  if (signal?.aborted) return; // superseded while the font was loading
 
   const transparent = !cfg.bgColor || cfg.bgColor === "transparent";
   const palette = (PALETTES[cfg.palette] ?? PALETTES.pastel).colors;
@@ -317,10 +326,22 @@ export async function renderWordCloud(canvas: HTMLCanvasElement, cfg: WordCloudC
 
   return new Promise((resolve) => {
     let settled = false;
-    const finish = () => {
-      if (settled) return;
+    let timer = 0;
+    const settle = () => {
       settled = true;
       canvas.removeEventListener("wordcloudstop", finish);
+      signal?.removeEventListener("abort", cancel);
+      clearTimeout(timer);
+    };
+    function cancel() {
+      if (settled) return;
+      settle();
+      WordCloud.stop();
+      resolve();
+    }
+    function finish() {
+      if (settled) return;
+      settle();
       if (hasMask && maskAlpha) {
         // Drop the black blocking area (no words were placed there), keeping the
         // shape's words; then paint the requested background behind them.
@@ -335,12 +356,13 @@ export async function renderWordCloud(canvas: HTMLCanvasElement, cfg: WordCloudC
         }
       }
       resolve();
-    };
+    }
     canvas.addEventListener("wordcloudstop", finish);
+    signal?.addEventListener("abort", cancel);
 
     WordCloud(canvas, {
       list,
-      fontFamily: cfg.fontFamily || FONT,
+      fontFamily: cfg.fontFamily || CJK_FALLBACK,
       fontWeight: "700",
       gridSize: cfg.density,
       weightFactor: (cfg.width / 120) * cfg.sizeScale,
@@ -357,11 +379,6 @@ export async function renderWordCloud(canvas: HTMLCanvasElement, cfg: WordCloudC
       clearCanvas: !hasMask,
     });
 
-    setTimeout(finish, 9000);
+    timer = window.setTimeout(finish, 9000);
   });
-}
-
-/** Abort an in-progress render (config changed / modal closed). */
-export function stopWordCloud() {
-  WordCloud.stop();
 }

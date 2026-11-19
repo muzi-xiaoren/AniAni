@@ -1,7 +1,7 @@
 # 截图 / Screenshots
 
-把这三张图放到本目录（文件名要一致），README 里的图片就会显示出来。
-Drop these three images here (exact filenames) and the README images will render.
+项目 README 引用的三张截图，替换时保持文件名不变。
+The three screenshots used by the project README — keep the filenames when replacing them.
 
 | 文件名 / Filename | 内容 / Content |
 | --- | --- |

@@ -1,11 +1,9 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { parseSeasonHTML } from "./parse";
-import { normalizeSeason } from "./schedule";
-import type { SeasonData } from "./types";
+import i18n from "../i18n";
 
 const BASE = "https://yuc.wiki";
 
-export function seasonUrl(yearMonth: string): string {
+function seasonUrl(yearMonth: string): string {
   return `${BASE}/${yearMonth}/`;
 }
 
@@ -25,7 +23,7 @@ export async function fetchSeasonHTML(yearMonth: string): Promise<string> {
   } catch {
     res = await tauriFetch(url.replace(/^https:/, "http:"), { method: "GET" });
   }
-  if (!res.ok) throw new Error(`抓取页面失败:HTTP ${res.status}(${url})`);
+  if (!res.ok) throw new Error(i18n.t("errors.fetchPage", { status: res.status, url }));
   return await res.text();
 }
 
@@ -33,12 +31,6 @@ export async function fetchSeasonHTML(yearMonth: string): Promise<string> {
  *  request avoids the webview's mixed-content / CORS blocks. */
 export async function fetchImageBytes(url: string): Promise<Uint8Array> {
   const res = await tauriFetch(url, { method: "GET" });
-  if (!res.ok) throw new Error(`图片下载失败:HTTP ${res.status}`);
+  if (!res.ok) throw new Error(i18n.t("errors.fetchImage", { status: res.status }));
   return new Uint8Array(await res.arrayBuffer());
-}
-
-/** Fetch + parse + normalize a whole season. */
-export async function loadSeasonFromWeb(yearMonth: string): Promise<SeasonData> {
-  const html = await fetchSeasonHTML(yearMonth);
-  return normalizeSeason(parseSeasonHTML(html, yearMonth));
 }
