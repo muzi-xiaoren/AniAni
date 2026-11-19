@@ -173,7 +173,7 @@ const resources = {
         choose: "Choose folder…",
         reset: "Reset to default",
         save: "Save",
-        note: "Word clouds → wordcloud/ ; collages without scores → before/ ; with scores → after/. For a location outside your home directory (~), use "Choose folder…" — a typed path only works under home.",
+        note: "Word clouds → wordcloud/ ; collages without scores → before/ ; with scores → after/. For a location outside your home directory (~), use “Choose folder…” — a typed path only works under home.",
       },
       studio: {
         title: "Word-cloud background studio",
